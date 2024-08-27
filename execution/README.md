@@ -1,6 +1,7 @@
 # Execution Section
 
 I.Process Creation and Management:
+
     https://blogs.30dayscoding.com/blogs/c/real-world-c-applications/system-programming/process-management/
 
     -> Process image : 
@@ -31,7 +32,7 @@ I.Process Creation and Management:
         -1:
         If fork() returns -1, it means the fork operation failed, and no child process was created.
         This can happen due to various reasons, such as reaching the system's limit on the number of processes or insufficient memory.
--> execve() system call :
+    -> execve() system call :
     https://docs.oracle.com/cd/E19048-01/chorus5/806-7016/6jftugggq/index.html#:~:text=5FEA)%20for%20details.-,DESCRIPTION,is%20an%20executable%20object%20file.
 
     How execve Works :
@@ -41,7 +42,7 @@ I.Process Creation and Management:
         Any open file descriptors remain open unless the new program explicitly closes them.
         The new program starts executing from its main function, using argv[] as its arguments and envp[] as its environment.
 
--> waitpid() :
+    -> waitpid() :
     https://www.ibm.com/docs/en/zos/2.4.0?topic=functions-waitpid-wait-specific-child-process-end
     Process Groups:
 
@@ -63,6 +64,7 @@ I.Process Creation and Management:
        (NB)=> When you pass 0 as the options argument to waitpid, it means that you're using the default behavior of waitpid.
 
 II. File Descriptors and Redirections : 
+
     ->File Descriptors :
     https://medium.com/@dhar.ishan04/here-is-all-you-need-to-know-about-file-descriptors-in-linux-d93f05166026#:~:text=File%20descriptors%20are%20simply%20non,interactions%20with%20various%20governmental%20services.
     ->redirections :
