@@ -63,6 +63,16 @@ I.Process Creation and Management:
        (NB)=> When you pass 0 as the options argument to waitpid, it means that you're using the default behavior of waitpid.
 
 II. File Descriptors and Redirections : 
-    File Descriptors :
+    ->File Descriptors :
     https://medium.com/@dhar.ishan04/here-is-all-you-need-to-know-about-file-descriptors-in-linux-d93f05166026#:~:text=File%20descriptors%20are%20simply%20non,interactions%20with%20various%20governmental%20services.
+    ->redirections :
+    https://www.gnu.org/software/bash/manual/html_node/Redirections.html
+    ->pipe() system call:
+    https://www.geeksforgeeks.org/pipe-system-call/
+    ->dup2() system call:
+    https://www.geeksforgeeks.org/dup-dup2-linux-system-call/
+
+III. Environment Variables:
+
+IV. Signal Handling:
     
