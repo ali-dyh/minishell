@@ -6,23 +6,23 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/28 02:32:05 by cboujrar          #+#    #+#             */
-/*   Updated: 2024/08/28 02:33:59 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/08/28 10:31:38 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
 
-int	main(int ac, char **av)
-{
-	int		end[2];
-	char	*PATH;
+// int	main(int ac, char **av)
+// {
+// 	int		end[2];
+// 	char	*PATH;
 
-	PATH = get_env();
-	if (ac == 5)
-		execute(PATH, av, end);
-	else
-		printf("error");
-}
+// 	PATH = get_env();
+// 	if (ac == 5)
+// 		execute(PATH, av, end);
+// 	else
+// 		printf("error");
+// }
 
 void	execute(char *PATH, char **av, int end[2])
 {
