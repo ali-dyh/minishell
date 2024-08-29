@@ -6,7 +6,7 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/28 09:44:23 by cboujrar          #+#    #+#             */
-/*   Updated: 2024/08/29 13:53:50 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/08/29 17:13:57 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -166,7 +166,7 @@ void	execute_1(char *PATH, t_list *list, int end[2])
 	waitpid(pid2, &status, 0);
 }
 
-void	first_child_1(t_list *list, int end[2], char *path)
+void	first_child(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
@@ -180,7 +180,7 @@ void	first_child_1(t_list *list, int end[2], char *path)
 		exit(EXIT_FAILURE);
 }
 
-void	second_child_1(t_list *list, int end[2], char *path)
+void	second_child(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
@@ -222,9 +222,7 @@ void multipipe(t_list *list)
 
 void execute_2(char *path, int end[2], t_list *list)
 {
-    pid_t pid1;
-    pid_t pid2;
-    // t_list *tmp;
+    pid_t pid;
     int status;
     
     if(pipe(end) == -1)
@@ -256,20 +254,6 @@ void execute_2(char *path, int end[2], t_list *list)
         waitpid(pid1, &status, 0);
         waitpid(pid2, &status, 0);
     }
+    while(waitpid(-1, &status, 0) > 0);
 }
 
-void execute_child(t_list *list, int end[2], char *path)
-{
-    char	**arg;
-
-	arg = create_arg(list);
-	if (dup2(end[1], STDOUT_FILENO) == -1)
-		exit(EXIT_FAILURE);
-    if (dup2(end[0], STDIN_FILENO) == -1)
-		exit(EXIT_FAILURE);
-    close(end[0]);
-    close(end[1]);
-	path = find_path(list->cmd, path);
-	if (execve(path, arg, NULL) == -1)
-		exit(EXIT_FAILURE);
-}
