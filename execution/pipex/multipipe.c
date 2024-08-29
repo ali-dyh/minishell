@@ -166,7 +166,7 @@ void	execute_1(char *PATH, t_list *list, int end[2])
 	waitpid(pid2, &status, 0);
 }
 
-void	first_child_1(t_list *list, int end[2], char *path)
+void	first_child(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
@@ -180,7 +180,7 @@ void	first_child_1(t_list *list, int end[2], char *path)
 		exit(EXIT_FAILURE);
 }
 
-void	second_child_1(t_list *list, int end[2], char *path)
+void	second_child(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
@@ -222,51 +222,51 @@ void multipipe(t_list *list)
 
 void execute_2(char *path, int end[2], t_list *list)
 {
-    pid_t pid1;
-    pid_t pid2;
-    // t_list *tmp;
+    pid_t pid;
     int status;
+    int prev_end[2];
+    char **arg;
 
-    if(pipe(end) == -1)
-        exit(EXIT_FAILURE);
-    // execute_1(path, list, end);
-    // list = list->next;
-    // list = list->next;
-    while(list && list->next)
+    prev_end[0] == -1;
+    prev_end[1] == -1;
+    while(list)
     {
-        pid1 = fork();
-        if(pid1 == -1)
-            exit(EXIT_FAILURE);
-        else if(pid1 == 0)
-            execute_child(list, end, path);
-        pid2 = fork();
-    
-        if(pid2 == -1)
-            exit(EXIT_FAILURE);
-        else if (pid2 == 0)
+        if(list->next)
         {
-            list = list->next;
-            execute_child(list, end, path);
-        }  
-        close(end[0]);
-        close(end[1]);
-        waitpid(pid1, &status, 0);
-        waitpid(pid2, &status, 0);
+            if(pipe(end) == -1)
+                exit(EXIT_FAILURE);
+        }
+        pid = fork();
+        if(pid == -1)
+            exit(EXIT_FAILURE);
+        else if(pid == 0)
+        {
+            if(prev_end[0] != -1)
+            {
+                dup2(prev_end[0], STDIN_FILENO);
+                close(prev_end[0]);
+                close(prev_end[1]);
+            }
+            if(list->next)
+            {
+                close(end[0]);
+                dup2(end[1], STDOUT_FILENO);
+                close(end[1]);
+            }
+            path = find_path(list->cmd, path);
+            arg = create_arg(list);
+            execve(path, arg, NULL);
+            exit(EXIT_FAILURE);
+        }
+        if(prev_end[0] != -1)
+        {
+            Close(prev_end[0]);
+            Close(prev_end[1]);
+        }
+        prev_end[0] = end[0];
+        prev_end[1] = end[1];
+        list = list->next;
     }
+    while(waitpid(-1, &status, 0) > 0);
 }
 
-void execute_child(t_list *list, int end[2], char *path)
-{
-    char	**arg;
-
-	arg = create_arg(list);
-	if (dup2(end[1], STDOUT_FILENO) == -1)
-		exit(EXIT_FAILURE);
-    if (dup2(end[0], STDIN_FILENO) == -1)
-		exit(EXIT_FAILURE);
-    close(end[0]);
-    close(end[1]);
-	path = find_path(list->cmd, path);
-	if (execve(path, arg, NULL) == -1)
-		exit(EXIT_FAILURE);
-}
