@@ -6,7 +6,7 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/28 09:44:23 by cboujrar          #+#    #+#             */
-/*   Updated: 2024/08/28 13:17:00 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/08/29 13:53:50 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -226,28 +226,31 @@ void execute_2(char *path, int end[2], t_list *list)
     pid_t pid2;
     // t_list *tmp;
     int status;
-
+    
     if(pipe(end) == -1)
         exit(EXIT_FAILURE);
-    // execute_1(path, list, end);
-    // list = list->next;
-    // list = list->next;
     while(list && list->next)
     {
         pid1 = fork();
+        // printf("pid1---> %d\n", pid2);
         if(pid1 == -1)
             exit(EXIT_FAILURE);
         else if(pid1 == 0)
+        {
+            // printf("I am here\n");
             execute_child(list, end, path);
+        }
         pid2 = fork();
-    
+        // printf("pid2---> %d\n", pid2);
         if(pid2 == -1)
             exit(EXIT_FAILURE);
         else if (pid2 == 0)
         {
             list = list->next;
             execute_child(list, end, path);
+            // printf("-->%s\n", list->cmd);
         }  
+
         close(end[0]);
         close(end[1]);
         waitpid(pid1, &status, 0);
