@@ -6,7 +6,7 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/28 09:44:23 by cboujrar          #+#    #+#             */
-/*   Updated: 2024/08/29 17:13:57 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/08/30 10:40:39 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,8 +28,11 @@ int main(int ac, char **av)
         if(ft_lstsize(list) == 2)
             pipex(list);
         else if (ft_lstsize(list) > 2)
-        {
             multipipe(list);
+        else if(ft_lstsize(list) == 1)
+        {
+            // printf("I am here\n");
+            execute_cmd(list);
         }
     }
 }
@@ -56,7 +59,7 @@ t_list *parse_input(char *s)
         // printf("--->%c\n", av[i + 1][0]);
         if(av[i][0] == '|')
             i++;
-        else if(av[i + 1] != NULL && av[i + 1][0] != '|' && av[i + 1][0] == '-')
+        else if(av[i + 1] != NULL && av[i + 1][0] != '|' )
         {
             // printf("I am here\n");
             check_cmd(av[i], av[i + 1] ,&list);
@@ -71,8 +74,8 @@ t_list *parse_input(char *s)
     }
         // while(list)
         // {
-        //     printf("-->%s\n", list->cmd);
-        //     printf("-->%s\n", list->arg);
+        //     printf("cmd -->%s\n", list->cmd);
+        //     printf("arg -->%s\n", list->arg);
         //     list = list->next;
         // }
     return(list);
@@ -82,7 +85,7 @@ void check_cmd(char *current, char *next, t_list **list)
 {
     if(next == NULL)
         append(list, current, NULL);
-    else if(current[0] != '-' && current[0] != '|' && next[0] == '-')
+    else if(current[0] != '-' && current[0] != '|' )
         append(list, current, next);
         
 }
@@ -166,40 +169,40 @@ void	execute_1(char *PATH, t_list *list, int end[2])
 	waitpid(pid2, &status, 0);
 }
 
-void	first_child(t_list *list, int end[2], char *path)
+void	first_child_1(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
-	arg = create_arg(list);
 	if (dup2(end[1], STDOUT_FILENO) == -1)
 		exit(EXIT_FAILURE);
     close(end[0]);
     close(end[1]);
 	path = find_path(list->cmd, path);
+	arg = create_arg(list, path);
 	if (execve(path, arg, NULL) == -1)
 		exit(EXIT_FAILURE);
 }
 
-void	second_child(t_list *list, int end[2], char *path)
+void	second_child_1(t_list *list, int end[2], char *path)
 {
 	char	**arg;
 
-	arg = create_arg(list);
 	if (dup2(end[0], STDIN_FILENO) == -1)
 		exit(EXIT_FAILURE);
 	close(end[1]);
     close(end[0]);
 	path = find_path(list->cmd, path);
+	arg = create_arg(list, path);
 	if (execve(path, arg, NULL) == -1)
 		exit(EXIT_FAILURE);
 }
 
-char **create_arg(t_list *list)
+char **create_arg(t_list *list,char *path)
 {
     char **arg;
-
+    
     arg = malloc(sizeof(char *) * 3);
-    arg[0] = list->cmd;
+    arg[0] = path;
     arg[1] = list->arg;
     arg[2] = NULL;
     // int i = 0;
@@ -224,36 +227,79 @@ void execute_2(char *path, int end[2], t_list *list)
 {
     pid_t pid;
     int status;
+    int prev_end[2];
+    char **arg;
     
-    if(pipe(end) == -1)
-        exit(EXIT_FAILURE);
-    while(list && list->next)
+    prev_end[0] = -1;
+    prev_end[1] = -1;
+    while(list)
     {
-        pid1 = fork();
-        // printf("pid1---> %d\n", pid2);
-        if(pid1 == -1)
-            exit(EXIT_FAILURE);
-        else if(pid1 == 0)
+        if(list->next)
         {
-            // printf("I am here\n");
-            execute_child(list, end, path);
+            if(pipe(end) == -1)
+            {
+                perror("pipe");
+                exit(EXIT_FAILURE);
+            }
         }
-        pid2 = fork();
-        // printf("pid2---> %d\n", pid2);
-        if(pid2 == -1)
+        pid = fork();
+        if(pid == -1)
             exit(EXIT_FAILURE);
-        else if (pid2 == 0)
+        else if(pid == 0)
         {
-            list = list->next;
-            execute_child(list, end, path);
-            // printf("-->%s\n", list->cmd);
-        }  
-
-        close(end[0]);
-        close(end[1]);
-        waitpid(pid1, &status, 0);
-        waitpid(pid2, &status, 0);
+            if(prev_end[0] != -1)
+            {
+                dup2(prev_end[0], STDIN_FILENO);
+                close(prev_end[0]);
+                close(prev_end[1]);
+            }
+            if (list->next)
+            {
+                close(prev_end[0]);
+                dup2(prev_end[1], STDOUT_FILENO);
+                close(prev_end[1]);
+            }
+            path = find_path(list->cmd, path);
+            arg = create_arg(list, path);
+            execve(path, arg, NULL);
+            exit(EXIT_FAILURE);
+        }
+        if (prev_end[0] != -1)
+        {
+            close(prev_end[0]);
+            close(prev_end[1]);
+        }
+        prev_end[0] = end[0];
+        prev_end[1] = end[1];
+        list = list->next;
     }
     while(waitpid(-1, &status, 0) > 0);
+    
+}
+
+void execute_cmd(t_list *list)
+{
+    char *path;
+    char **arg;
+    pid_t pid;
+    int status;
+    
+    pid = fork();
+    if(pid == -1)
+    {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+    else if(pid == 0)
+    {
+        path = get_env("PATH");
+        path = find_path(list->cmd, path);
+        arg = create_arg(list, path);
+        if(execve(path, arg, NULL) == -1)
+        {
+            printf("command not found: %s\n", list->cmd);
+        }
+    }
+    waitpid(pid, &status, 0);
 }
 
