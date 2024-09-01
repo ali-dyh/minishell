@@ -13,6 +13,7 @@ enum e_quote_state
     DOUBLE,
 };
 
+
 enum e_token_type
 {
     TT_EOF,
@@ -120,7 +121,12 @@ void handle_quote(t_lexer *lex)
 
 void handle_space(t_lexer *lex)
 {
-    if (lex->quote_state != NONE)
+    if (lex->quote_state && lex->delim_state)
+    {
+        push_token(lex, TT_TMP, 1);
+        lex->delim_state = 0;
+    }
+    else if (lex->quote_state)
         append_token(lex);
     else
         lex->delim_state = 1;
