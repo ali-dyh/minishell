@@ -165,6 +165,8 @@ void handle_space(t_lexer *lex)
         push_token(lex, TT_TMP);
         lex->delim_state = 0;
     }
+    else if (lex->quote_state && !lex->token_stream->end)
+        push_token(lex, TT_TMP);
     else if (lex->quote_state)
         append_token(lex);
     else
