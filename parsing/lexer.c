@@ -10,8 +10,8 @@
 enum e_quote_state
 {
     NONE,
-    SINGLE,
-    DOUBLE,
+    SINGLE = '\'',
+    DOUBLE = '"',
 };
 
 enum e_token_type
@@ -79,54 +79,41 @@ int ft_is_seperator(char c)
     return (c == '<' || c == '>' || c == '(' || c == ')' || c == '&' || c == '|');
 }
 
-int token_lexeme_append1(t_lexer *lex)
+int token_lexeme_append(t_lexer *lex, size_t len)
 {
+    size_t i;
     t_token *token;
-    char *new_lexeme;
 
+    i = 0;
     token = lex->token_stream->end;
-    new_lexeme = (char*)malloc(token->len + 2);
-    // 0 Hello World
-    char *c = lex->line + lex->nparsed;
-    // TODO: handle malloc failure
-    // if (!new_lexeme)
+    /// TODO: replace realloc with ft_realloc
     if (token->lexeme)
-        strcpy(new_lexeme, token->lexeme);
-    strncat(new_lexeme, c, 1);
-    free(token->lexeme);
-    token->lexeme = NULL;
-    token->lexeme = new_lexeme;
-    token->len++;
-    printf("%s\n", new_lexeme);
-    return (0);
-}
-
-
-int token_lexeme_append(t_lexer *lex)
-{
-    t_token *token = lex->token_stream->end;
-    if (token->lexeme)
-        token->lexeme = (char *)realloc(token->lexeme, token->len + 2); 
+        token->lexeme = (char *)realloc(token->lexeme, token->len + len + 1); 
     else 
-        token->lexeme = (char *)malloc(token->len + 2);
+        token->lexeme = (char *)malloc(len + 1);
     if (!token->lexeme) 
         return -1;
-    token->lexeme[token->len] = lex->line[lex->nparsed];        
-    token->lexeme[token->len + 1] = '\0';
-    token->len++;
+    while (i < len)
+    {
+        token->lexeme[token->len + i] = lex->line[lex->nparsed];        
+        token->len++;
+        lex->nparsed++;
+        i++;
+    }
+    token->lexeme[token->len] = '\0';
     return 0;
 }
 void append_token(t_lexer *lex)
 {
     // if (lex->token_stream->end)
     // lex->token_stream->end->len++;
-    token_lexeme_append(lex);
+    token_lexeme_append(lex, 1);
 }
-int push_token(t_lexer *lex, enum e_token_type type)
+void push_token(t_lexer *lex, enum e_token_type type, size_t len)
 {
     t_token *token = (t_token *)malloc(sizeof(t_token));
-    if (!token)
-        return (0);
+    /// TODO: handle the malloc failure
+    // if (!token)
     token->lexeme = NULL;
     token->next = NULL;
     token->type = type;
@@ -136,95 +123,75 @@ int push_token(t_lexer *lex, enum e_token_type type)
     else 
         lex->token_stream->end->next = token;
     lex->token_stream->end = token;
-    token_lexeme_append(lex);
-    return (0);
+    token_lexeme_append(lex, len);
 }
 void handle_quote(t_lexer *lex)
 {
     char c = lex->line[lex->nparsed];
 
-    if (lex->quote_state == NONE)
+    if (lex->quote_state && lex->quote_state != c)
     {
-        if (c == '\'')
-            lex->quote_state = SINGLE;
-        else if (c == '"')
-            lex->quote_state = DOUBLE;
+        if (lex->token_stream->end)
+            return append_token(lex);
+        else
+            return push_token(lex, TT_TMP, 1);
     }
-    else if (lex->quote_state == SINGLE && c == '\'')
+    else if (lex->quote_state == c)
+    {
+        // "" echo
+        if (lex->delim_state)
+        {
+            push_token(lex, TT_TMP, 0);
+            lex->delim_state = 0;
+        }
+        else if (!lex->token_stream->end || !lex->token_stream->end->len)
+            push_token(lex, TT_TMP, 0);
         lex->quote_state = NONE;
-    else if (lex->quote_state == DOUBLE && c == '"')
-        lex->quote_state = NONE;
-    else if (lex->token_stream->end)
-        append_token(lex);
+    }
     else
-        push_token(lex, TT_TMP) ;
+        lex->quote_state = c;
+    lex->nparsed++;
 }
 
 void handle_space(t_lexer *lex)
 {
     if (lex->quote_state && lex->delim_state)
     {
-        push_token(lex, TT_TMP);
+        push_token(lex, TT_TMP, 1);
         lex->delim_state = 0;
     }
     else if (lex->quote_state && !lex->token_stream->end)
-        push_token(lex, TT_TMP);
+        push_token(lex, TT_TMP, 1);
     else if (lex->quote_state)
         append_token(lex);
-    else
+    else{
         lex->delim_state = 1;
+        lex->nparsed++;
+    }
 }
 
 void handle_seperator(t_lexer *lex)
 {
-    if (lex->line[lex->nparsed] == TT_PIPE)
-    {
-        if (lex->line[lex->nparsed + 1] == TT_PIPE)
-        {
-            push_token(lex, TT_OR);
-            lex->nparsed++;
-            append_token(lex);
-        }
-        else 
-            push_token(lex, TT_PIPE);
-    }
+    if (lex->line[lex->nparsed] == TT_PIPE && lex->line[lex->nparsed + 1] == TT_PIPE)
+        push_token(lex, TT_OR, 2);
+    else if (lex->line[lex->nparsed] == TT_AMPERSAND && lex->line[lex->nparsed] == TT_AMPERSAND)
+        push_token(lex, TT_OR, 2);
+    else if (lex->line[lex->nparsed] == TT_REDIRECT_INPUT && lex->line[lex->nparsed] == TT_REDIRECT_INPUT)
+        push_token(lex, TT_HEREDOC, 2);
+    else if (lex->line[lex->nparsed] == TT_REDIRECT_OUTPUT && lex->line[lex->nparsed] == TT_REDIRECT_OUTPUT)
+        push_token(lex, TT_APPEND_OUTPUT, 2);
+    else if (lex->line[lex->nparsed] == TT_PIPE)
+        push_token(lex, TT_PIPE, 1);
     else if (lex->line[lex->nparsed] == TT_AMPERSAND)
-    {
-        if (lex->line[lex->nparsed + 1] == TT_AMPERSAND)
-        {
-            push_token(lex, TT_AND);
-            lex->nparsed++;
-            append_token(lex);
-        }
-        else 
-            push_token(lex, TT_AMPERSAND);
-    }
+        push_token(lex, TT_AMPERSAND, 1);
     else if (lex->line[lex->nparsed] == TT_REDIRECT_INPUT)
-    {
-        if (lex->line[lex->nparsed + 1] == TT_REDIRECT_INPUT)
-        {
-            push_token(lex, TT_HEREDOC);
-            lex->nparsed++;
-            append_token(lex);
-        }
-        else 
-            push_token(lex, TT_REDIRECT_INPUT);
-    }
+        push_token(lex, TT_REDIRECT_INPUT, 1);
     else if (lex->line[lex->nparsed] == TT_REDIRECT_OUTPUT)
-    {
-        if (lex->line[lex->nparsed + 1] == TT_REDIRECT_OUTPUT)
-        {
-            push_token(lex, TT_APPEND_OUTPUT);
-            lex->nparsed++;
-            append_token(lex);
-        }
-        else 
-            push_token(lex, TT_REDIRECT_OUTPUT);
-    }
+        push_token(lex, TT_REDIRECT_OUTPUT, 1);
     else if (lex->line[lex->nparsed] == TT_LEFT_PAREN)
-            push_token(lex, TT_LEFT_PAREN);
+            push_token(lex, TT_LEFT_PAREN, 1);
     else if (lex->line[lex->nparsed] == TT_RIGHT_PAREN)
-            push_token(lex, TT_RIGHT_PAREN);
+            push_token(lex, TT_RIGHT_PAREN, 1);
     lex->delim_state = 1;
 }
 
@@ -248,7 +215,7 @@ t_lexer *lexer_init(char *line)
 void handle_tmp(t_lexer *lex)
 {
     if (lex->delim_state || !lex->token_stream->end)
-        push_token(lex, TT_TMP);
+        push_token(lex, TT_TMP, 1);
     else 
         append_token(lex);
     lex->delim_state = 0;
@@ -272,7 +239,6 @@ void lexer_run(t_lexer *lex)
             handle_seperator(lex);
         else 
             handle_tmp(lex);
-        lex->nparsed++;
     }
     if (lex->quote_state)
         lex->error = UNCLOSED_QUOTATION;
