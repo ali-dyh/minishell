@@ -5,6 +5,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
+// TODO: needs to handle "" cmd
 
 enum e_quote_state
 {
@@ -12,7 +13,6 @@ enum e_quote_state
     SINGLE,
     DOUBLE,
 };
-
 
 enum e_token_type
 {
@@ -32,6 +32,8 @@ enum e_token_type
     TT_HEREDOC, // << 
     
 };
+
+
 
 enum e_lexical_error
 {
@@ -276,12 +278,53 @@ void lexer_run(t_lexer *lex)
         lex->error = UNCLOSED_QUOTATION;
 }
 
+void print_token_type (enum e_token_type token_type) 
+{
+    switch (token_type)
+    {
+        case TT_REDIRECT_INPUT:
+            printf("REDIRECT_INPUT\n");
+            break;
+        case TT_REDIRECT_OUTPUT:
+            printf("REDIRECT_OUTPUT\n");
+            break;
+        case TT_LEFT_PAREN:
+            printf("LEFT_PAREN\n");
+            break;
+        case TT_RIGHT_PAREN:
+            printf("RIGHT_PAREN\n");
+            break;
+        case TT_AMPERSAND:
+            printf("AMPERSAND\n");
+            break;
+        case TT_OR:
+            printf("OR\n");
+            break;
+        case TT_PIPE:
+            printf("PIPE\n");
+            break;
+        case TT_AND:
+            printf("AND\n");
+            break;
+        case TT_APPEND_OUTPUT:
+            printf("APPEND_OUTPUT\n");
+            break;
+        case TT_HEREDOC:
+            printf("HEREDOC\n");
+            break;
+        default :
+            printf("TMP\n");
+    }
+}
+
 void token_dump(t_lexer *lex)
 {
     t_token *token = lex->token_stream->start;
     while (token)
     {
-        printf("token <%s> | size: %ld | strlen: %ld\n", token->lexeme, token->len, strlen(token->lexeme));
+        printf("token <%s> | size: %ld | strlen: %ld", token->lexeme, token->len, strlen(token->lexeme));
+        printf(" | type: ");
+        print_token_type(token->type);
         token = token->next;
     }
 }
