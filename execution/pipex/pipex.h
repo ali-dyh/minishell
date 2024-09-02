@@ -6,7 +6,7 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/08/28 00:38:11 by cboujrar          #+#    #+#             */
-/*   Updated: 2024/08/30 10:36:14 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/09/02 15:52:41 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -41,15 +41,12 @@ t_list *parse_input(char *s);
 void check_cmd(char *current, char *next, t_list **list);
 void	append(t_list **list, char* cmd, char *arg);
 int	ft_lstsize(t_list *lst);
-void pipex(t_list *list);
-void	execute_1(char *PATH, t_list *list, int end[2]);
 char **create_arg(t_list *list,char *path);
 void multipipe(t_list *list);
-void execute_2(char *path, int end[2], t_list *list);
-void	first_child_1(t_list *list, int end[2], char *path);
-void	second_child_1(t_list *list, int end[2], char *path);
+void execute_multipipe(char *path, int end[2], t_list *list);
 void execute_cmd(t_list *list);
-
+void child_process(t_list *list, int end[2], int prev_end[2], char * path);
+void set_prev_end(int prev_end[2], int end[2]);
 
 
 #endif
