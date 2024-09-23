@@ -12,21 +12,21 @@
 
 #include "pipex.h"
 
-int main(int ac, char **av)
-{
-    (void) ac;
-    (void)av;
-    t_list *list;
+// int main(int ac, char **av)
+// {
+//     (void) ac;
+//     (void)av;
+//     t_list *list;
     
-    while(1)
-    {  
-        list = parse_input(readline(">>"));
-        if(ft_lstsize(list) == 1)
-            execute_cmd(list);
-        else
-            multipipe(list);
-    }
-}
+//     while(1)
+//     {  
+//         list = parse_input(readline(">>"));
+//         if(ft_lstsize(list) == 1)
+//             execute_cmd(list);
+//         else
+//             multipipe(list);
+//     }
+// }
 
 t_list *parse_input(char *s)
 {

@@ -22,6 +22,7 @@
 #include<string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include<limits.h>
 
 typedef struct s_list{
     char *cmd;
@@ -47,6 +48,8 @@ void execute_multipipe(char *path, int end[2], t_list *list);
 void execute_cmd(t_list *list);
 void child_process(t_list *list, int end[2], int prev_end[2], char * path);
 void set_prev_end(int prev_end[2], int end[2]);
-
+void bultin_cd(char *path);
+int	ft_strcmp(char *s1,char *s2);
+void bultin_pwd();
 
 #endif
