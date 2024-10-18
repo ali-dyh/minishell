@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <cjson/cJSON.h>
 
 enum e_quote_state
 {
@@ -305,7 +306,6 @@ enum e_syntax_error
     WTF // malloc failure
 };
 
-
 enum e_node_type
 {
     NT_CMD = 1,
@@ -319,7 +319,7 @@ enum e_op_type
     OT_PIPE,
 };
 
-enum e_cmd_io_type
+enum e_io_type
 {
     IO_REDIRECT_INPUT = 1,
     IO_REDIRECT_OUTPUT,
@@ -336,7 +336,7 @@ typedef struct s_parser
 typedef struct s_cmd_io
 {
     char *file;
-    enum e_cmd_io_type type;
+    enum e_io_type type;
     struct s_cmd_io *next;
 } t_cmd_io;
 
@@ -416,7 +416,7 @@ t_cmd_arg *new_cmd_arg(char *arg_name)
 {
     t_cmd_arg *arg;
 
-    arg = (t_cmd_arg*)malloc(sizeof(t_cmd_arg));
+    arg = (t_cmd_arg *)malloc(sizeof(t_cmd_arg));
     if (!arg)
         return (NULL);
     // TODO: replace strdup with ft_strdup and malloc check
@@ -424,11 +424,11 @@ t_cmd_arg *new_cmd_arg(char *arg_name)
     arg->next = NULL;
     return arg;
 }
-t_cmd_io *new_cmd_io(enum e_cmd_io_type io_type)
+t_cmd_io *new_cmd_io(enum e_io_type io_type)
 {
     t_cmd_io *io;
 
-    io = (t_cmd_io*)malloc(sizeof(t_cmd_io));
+    io = (t_cmd_io *)malloc(sizeof(t_cmd_io));
     if (!io)
         return (NULL);
     io->type = io_type;
@@ -447,12 +447,13 @@ void push_cmd_arg(t_parser *par, t_cmd_data *data)
         arg->next = new_cmd_arg(par->current_token->lexeme);
     }
     else
-       data->arg = new_cmd_arg(par->current_token->lexeme);
-    if (!data->arg || !arg->next)
-        par->error = WTF;
+        data->arg = new_cmd_arg(par->current_token->lexeme);
+    // if (!data->arg || !arg->next)
+    //     par->error = WTF;
 }
 
-enum e_cmd_io_type get_io_type(enum e_token_type ttype) {
+enum e_io_type get_io_type(enum e_token_type ttype)
+{
     if (ttype == TT_REDIRECT_INPUT)
         return (IO_REDIRECT_INPUT);
     else if (ttype == TT_REDIRECT_OUTPUT)
@@ -476,7 +477,7 @@ void push_cmd_io(t_parser *par, t_cmd_data *data)
     }
     else
         data->io = new_cmd_io(get_io_type(par->current_token->type));
-    // if (!data->io || !io->next) 
+    // if (!data->io || !io->next)
     // {
     //     par->error = WTF;
     //     return;
@@ -490,7 +491,6 @@ void push_cmd_io(t_parser *par, t_cmd_data *data)
     else
         par->error = UNEXPECTED_TOKEN;
 }
-
 
 t_cmd_data *parse_cmd_data(t_parser *par)
 {
@@ -514,9 +514,6 @@ t_cmd_data *parse_cmd_data(t_parser *par)
     return (data);
 }
 
-
-// ls -alt > test.text
-
 t_node *parse_cmd_node(t_parser *par)
 {
     t_node *node;
@@ -532,55 +529,55 @@ t_node *parse_cmd_node(t_parser *par)
     return (node);
 }
 
-
-void dump_cmd_node(t_node *node)
+enum e_op_type get_op_type(t_token *token)
 {
-    t_cmd_arg *arg;
-    t_cmd_io *io;
-
-    arg = node->data->cmd_data->arg;
-    io = node->data->cmd_data->io;
-    printf("|-type: %d\n", node->type);
-    // printf("|--data:\n");
-    printf("|--args: [");
-    while (arg)
-    {
-        printf("%s", arg->name);
-        arg = arg->next;
-        if (arg)
-            printf(", ");
-    }
-    printf("]\n");
-    printf("|--ios: [");
-    while (io)
-    {
-        printf("{type: %u, file: %s}", io->type, io->file);
-        io = io->next;
-        if (io)
-            printf(", ");
-    }
-    printf("]\n");
+    if (token->type == TT_AND)
+        return (OT_AND);
+    if (token->type == TT_OR)
+        return (OT_OR);
+    if (token->type == TT_PIPE)
+        return (OT_PIPE);
+    return (0);
 }
-t_node *parser_run(t_parser *par)
+
+t_node *new_op_node(enum e_op_type op_type, t_node *left_node, t_node *right_node)
+{
+    t_node *node = new_node(NT_OP);
+    if (!node)
+        return (NULL);
+    node->data->op_data = (t_op_data *)malloc(sizeof(t_op_data));
+    if (!node->data->op_data)
+        return (NULL);
+    node->data->op_data->type = op_type;
+    node->data->op_data->left = left_node;
+    node->data->op_data->right = right_node;
+    return (node);
+}
+
+t_node *parser_run(t_parser *par, int op_prec)
 {
     t_node *left_node;
-    t_node *right_node;
+    enum e_op_type op_type;
 
     left_node = parse_cmd_node(par);
-    // while (1)
-    // {
-    //     // cmd1 | cmd2
-    //     if (par->error || !par->current_token)
-    //         break;
-    //     // parse_op_node(par)
-    //     right_node =  pa  
-    // }
+    while (!par->error && par->current_token)
+    {
+        op_type = get_op_type(par->current_token);
+        // if the next token is not an specified op then what ? 
+        // TODO: this needs to be an error 
+        if (!op_type)
+            break;
+        if (!(op_type >= op_prec))
+            break;
+        get_next_token(par);
+        left_node = new_op_node(op_type, left_node, parser_run(par, op_type + 1));
+    }
     return left_node;
 }
 
 t_parser *parser_init(t_lexer *lex)
 {
-    t_parser *par = (t_parser*)malloc(sizeof(t_parser));
+    t_parser *par = (t_parser *)malloc(sizeof(t_parser));
     if (!par)
         return (NULL);
     par->current_token = lex->token_stream->start;
@@ -588,6 +585,118 @@ t_parser *parser_init(t_lexer *lex)
     return par;
 }
 
+// void dump_cmd_node(t_node *node)
+// {
+//     t_cmd_arg *arg;
+//     t_cmd_io *io;
+
+//     arg = node->data->cmd_data->arg;
+//     io = node->data->cmd_data->io;
+//     printf("|-type: %d\n", node->type);
+//     // printf("|--data:\n");
+//     printf("|--args: [");
+//     while (arg)
+//     {
+//         printf("%s", arg->name);
+//         arg = arg->next;
+//         if (arg)
+//             printf(", ");
+//     }
+//     printf("]\n");
+//     printf("|--ios: [");
+//     while (io)
+//     {
+//         printf("{type: %u, file: %s}", io->type, io->file);
+//         io = io->next;
+//         if (io)
+//             printf(", ");
+//     }
+//     printf("]\n");
+// }
+
+char *print_node_type(enum e_node_type node_type)
+{
+    switch (node_type)
+    {
+        case NT_CMD: 
+            return "CMD";
+        default:
+            return "OP";
+    }
+}
+
+char *print_io_type(enum e_io_type io_type)
+{
+    switch (io_type)
+    {
+    case IO_REDIRECT_INPUT:
+        return "REDIRECT INPUT";
+    case IO_REDIRECT_OUTPUT:
+        return "REDIRECT OUTPUT";
+    case IO_APPEND_OUTPUT:
+        return "APPEND OUTPUT";
+    default:
+        return "HEREDOC";
+    }
+}
+
+
+char *print_op_type (enum e_op_type op_type)
+{
+    switch (op_type)
+    {
+    case OT_AND:
+        return "AND";
+    case OT_OR:
+        return "OR";
+    default:
+        return "PIPE";
+    }
+}
+
+cJSON *cmd_to_json(t_node *node)
+{
+    t_cmd_arg *arg = node->data->cmd_data->arg;
+    t_cmd_io *io = node->data->cmd_data->io;
+    cJSON *nodeObj = cJSON_CreateObject();
+    cJSON *argArr = cJSON_CreateArray();
+    cJSON *ioArr = cJSON_CreateArray();
+    cJSON *ioObj;
+    cJSON_AddStringToObject(nodeObj, "node_type", print_node_type(node->type));
+    while (arg || io)
+    {
+        if (arg)
+        {
+            cJSON_AddItemToArray(argArr, cJSON_CreateString(arg->name));
+            arg = arg->next;
+        }
+        if (io)
+        {
+            ioObj = cJSON_CreateObject();
+            cJSON_AddStringToObject(ioObj, "io_type", print_io_type(io->type));
+            cJSON_AddStringToObject(ioObj, "file_name", io->file);
+            cJSON_AddItemToArray(ioArr, ioObj);
+            io = io->next;
+        }
+    }
+    cJSON_AddItemToObject(nodeObj, "args", argArr);
+    cJSON_AddItemToObject(nodeObj, "ios", ioArr);
+    return nodeObj;
+}
+
+cJSON *ast_to_json(t_node *node)
+{
+    if (node->type == NT_OP)
+    {
+        cJSON *nodeObj = cJSON_CreateObject();
+        cJSON_AddStringToObject(nodeObj, "node_type", print_node_type(node->type));
+        cJSON_AddStringToObject(nodeObj, "op_type", print_op_type(node->data->op_data->type));
+        cJSON_AddItemToObject(nodeObj, "left_node", ast_to_json(node->data->op_data->left));
+        cJSON_AddItemToObject(nodeObj, "right_node",ast_to_json(node->data->op_data->right));
+        return nodeObj;
+    }
+    return cmd_to_json(node);
+}
 int main()
 {
     while (1)
@@ -596,13 +705,18 @@ int main()
         lexer_run(lex);
         if (lex->error)
             return (printf("lexical error %d", lex->error), 1);
-        token_dump(lex);
+        // token_dump(lex);
         t_parser *par = parser_init(lex);
-        t_node *node = parser_run(par);
+        t_node *node = parser_run(par, 0);
         if (par->error)
             return (printf("parser error %d", par->error), 1);
-        dump_cmd_node(node);
+        // dump_cmd_node(node);
         // free_lexer(lex);
+        cJSON *ast = ast_to_json(node);
+        char *jsonStr = cJSON_Print(ast);
+        printf("%s\n", jsonStr);
+        cJSON_free(jsonStr);
+        // cJSON_Delete(astArr);
     }
     return (0);
 }
