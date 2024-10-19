@@ -35,7 +35,8 @@ enum e_token_type
 enum e_lexical_error
 {
     NO_ERR,
-    UNCLOSED_QUOTATION = 12,
+    UNCLOSED_DOUBLE_QUOTATION,
+    UNCLOSED_SINGLE_QUOTATION
 };
 
 typedef struct s_token
@@ -212,46 +213,38 @@ void lexer_run(t_lexer *lex)
         else
             handle_word(lex);
     }
-    if (lex->quote_state)
-        lex->error = UNCLOSED_QUOTATION;
+    if (lex->quote_state == SINGLE)
+        lex->error = UNCLOSED_SINGLE_QUOTATION;
+    if (lex->quote_state == DOUBLE)
+        lex->error = UNCLOSED_DOUBLE_QUOTATION;
 }
 
-void print_token_type(enum e_token_type token_type)
+char *print_token_type(enum e_token_type token_type)
 {
     switch (token_type)
     {
     case TT_REDIRECT_INPUT:
-        printf("REDIRECT_INPUT\n");
-        break;
+        return ("REDIRECT_INPUT");
     case TT_REDIRECT_OUTPUT:
-        printf("REDIRECT_OUTPUT\n");
-        break;
+        return ("REDIRECT_OUTPUT");
     case TT_LEFT_PAREN:
-        printf("LEFT_PAREN\n");
-        break;
+        return ("LEFT_PAREN");
     case TT_RIGHT_PAREN:
-        printf("RIGHT_PAREN\n");
-        break;
+        return ("RIGHT_PAREN");
     case TT_AMPERSAND:
-        printf("AMPERSAND\n");
-        break;
+        return ("AMPERSAND");
     case TT_OR:
-        printf("OR\n");
-        break;
+        return ("OR");
     case TT_PIPE:
-        printf("PIPE\n");
-        break;
+        return ("PIPE");
     case TT_AND:
-        printf("AND\n");
-        break;
+        return ("AND");
     case TT_APPEND_OUTPUT:
-        printf("APPEND_OUTPUT\n");
-        break;
+        return ("APPEND_OUTPUT");
     case TT_HEREDOC:
-        printf("HEREDOC\n");
-        break;
+        return ("HEREDOC");
     default:
-        printf("WORD\n");
+        return ("WORD");
     }
 }
 
@@ -266,6 +259,54 @@ void token_dump(t_lexer *lex)
         print_token_type(token->type);
         token = token->next;
     }
+}
+
+cJSON *lex_to_json(t_lexer *lex)
+{
+    cJSON *lexObj = cJSON_CreateObject();
+    cJSON *tokenObj;
+    cJSON *tokenArr = cJSON_CreateArray();
+
+    cJSON_AddNumberToObject(lexObj, "number_of_tokens", lex->token_stream->count);
+    t_token *token = lex->token_stream->start;
+    while (token)
+    {
+        tokenObj = cJSON_CreateObject();
+        cJSON_AddStringToObject(tokenObj, "token", token->lexeme);
+        cJSON_AddStringToObject(tokenObj, "token_type", print_token_type(token->type));
+        cJSON_AddNumberToObject(tokenObj, "token_length", token->len);
+        cJSON_AddNumberToObject(tokenObj, "token_strlen", strlen(token->lexeme));
+        cJSON_AddItemToArray(tokenArr, tokenObj);
+        token = token->next;
+    }
+    cJSON_AddItemToObject(lexObj, "token_list", tokenArr);
+    return lexObj;
+}
+
+void lexer_free(t_lexer *lex)
+{
+    t_token *token;
+    t_token *token_tmp;
+
+    token = lex->token_stream->start;
+    while (token)
+    {
+        token_tmp = token;
+        token = token->next;
+        free(token_tmp->lexeme);
+        free(token_tmp);
+    }
+    free(lex->token_stream);
+    free(lex->line);
+    free(lex);
+}
+
+void lexer_print_err(enum e_lexical_error lex_err)
+{
+    if (lex_err == UNCLOSED_SINGLE_QUOTATION)
+        printf("unexpected EOF while looking for matching `''\n");
+    if (lex_err == UNCLOSED_DOUBLE_QUOTATION)
+        printf("unexpected EOF while looking for matching `\"'\n");
 }
 // t_token *get_next_token(t_lexer *lex)
 // {
@@ -563,10 +604,11 @@ t_node *parser_run(t_parser *par, int op_prec)
     while (!par->error && par->current_token)
     {
         op_type = get_op_type(par->current_token);
-        // if the next token is not an specified op then what ? 
-        // TODO: this needs to be an error 
+        // if the next token is not an specified op then what ?
+        // TODO: this needs to be an error
         if (!op_type)
-            break;
+            return (par->error = UNEXPECTED_TOKEN, left_node);
+            // par->error = UNEXPECTED_TOKEN;
         if (!(op_type >= op_prec))
             break;
         get_next_token(par);
@@ -618,10 +660,10 @@ char *print_node_type(enum e_node_type node_type)
 {
     switch (node_type)
     {
-        case NT_CMD: 
-            return "CMD";
-        default:
-            return "OP";
+    case NT_CMD:
+        return "CMD";
+    default:
+        return "OP";
     }
 }
 
@@ -640,8 +682,7 @@ char *print_io_type(enum e_io_type io_type)
     }
 }
 
-
-char *print_op_type (enum e_op_type op_type)
+char *print_op_type(enum e_op_type op_type)
 {
     switch (op_type)
     {
@@ -692,31 +733,117 @@ cJSON *ast_to_json(t_node *node)
         cJSON_AddStringToObject(nodeObj, "node_type", print_node_type(node->type));
         cJSON_AddStringToObject(nodeObj, "op_type", print_op_type(node->data->op_data->type));
         cJSON_AddItemToObject(nodeObj, "left_node", ast_to_json(node->data->op_data->left));
-        cJSON_AddItemToObject(nodeObj, "right_node",ast_to_json(node->data->op_data->right));
+        cJSON_AddItemToObject(nodeObj, "right_node", ast_to_json(node->data->op_data->right));
         return nodeObj;
     }
     return cmd_to_json(node);
 }
+
+
+
+// void par_print_err()
+
+void node_cmd_data_free(t_cmd_data *cmd_data)
+{
+    t_cmd_arg *arg;
+    t_cmd_io *io;
+    t_cmd_arg *arg_tmp;
+    t_cmd_io *io_tmp;
+
+    arg = cmd_data->arg;
+    io = cmd_data->io;
+    while (arg || io)
+    {
+        if (arg)
+        {
+           arg_tmp = arg; 
+           arg = arg->next;
+           free(arg_tmp->name);
+           free(arg_tmp);
+        }
+        if (io)
+        {
+            io_tmp = io;
+            io = io->next;
+            free(io_tmp->file);
+            free(io_tmp);
+        }
+    }
+    free(cmd_data);
+}
+
+
+void node_cmd_free(t_node *node)
+{
+    node_cmd_data_free(node->data->cmd_data);
+    free(node->data);
+    free(node);
+}
+
+
+void node_free(t_node *node)
+{
+    if (!node)
+        return;
+    if (node->type == NT_OP)
+    {
+        node_free(node->data->op_data->right);
+        node_free(node->data->op_data->left);
+        free(node->data->op_data);
+        free(node->data);
+        free(node);
+    }
+    else 
+        node_cmd_free(node);
+}
+void parser_print_err(t_parser *par)
+{
+    if (par->error == UNEXPECTED_EOF)
+        printf("syntax error: unexpected end of file\n");
+    else if (par->error == UNEXPECTED_TOKEN)
+        printf("syntax error near unexpected token `%s'\n",par->current_token->lexeme);
+        // printf("syntax error: unexpected end of file %s", par->current_token->lexeme);
+}
 int main()
 {
-    while (1)
-    {
-        t_lexer *lex = lexer_init(readline(">> "));
+    // while (1)
+    // {
+        char *line = readline(">> ");
+        t_lexer *lex = lexer_init(line);
         lexer_run(lex);
         if (lex->error)
-            return (printf("lexical error %d", lex->error), 1);
+        {
+            lexer_print_err(lex->error);
+            lexer_free(lex);
+            // continue;
+            exit(1);
+        }
+        // cJSON *lexJSON = lex_to_json(lex);
+        // char *lexStr = cJSON_Print(lexJSON);
+        // printf("%s\n", lexStr);
+        // cJSON_free(lexStr);
+        // cJSON_Delete(lexJSON);
+        // free_lex(lex);
         // token_dump(lex);
         t_parser *par = parser_init(lex);
         t_node *node = parser_run(par, 0);
         if (par->error)
-            return (printf("parser error %d", par->error), 1);
+        {
+            parser_print_err(par);
+            free(par);
+            node_free(node);
+            lexer_free(lex);
+            // continue;
+            exit(1);
+        }
         // dump_cmd_node(node);
-        // free_lexer(lex);
         cJSON *ast = ast_to_json(node);
         char *jsonStr = cJSON_Print(ast);
         printf("%s\n", jsonStr);
         cJSON_free(jsonStr);
-        // cJSON_Delete(astArr);
-    }
+        cJSON_Delete(ast);
+        free(par);
+        node_free(node);
+        lexer_free(lex);
     return (0);
 }
