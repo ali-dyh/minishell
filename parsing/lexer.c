@@ -201,7 +201,6 @@ void handle_expand(t_lexer *lex)
     size_t env_len;
     char *env_str;
     char *env_val;
-    char *tmp;
     
     env_len = 0;
     lex->nparsed++;
@@ -238,15 +237,14 @@ void handle_expand(t_lexer *lex)
             lex->token_stream->count++;
         }
         else {
-            tmp = lex->token_stream->end->lexeme;
-            lex->token_stream->end->lexeme = strcat(tmp, env_val);
-            // TODO: replace strlen with ft_strlen
+            // TODO: replace realloc and strlen with ft_
+            lex->token_stream->end->lexeme = realloc(lex->token_stream->end->lexeme, lex->token_stream->end->len + strlen(env_val) + 1);
+            strcat(lex->token_stream->end->lexeme, env_val);
             lex->token_stream->end->len += strlen(env_val);
-            free(tmp);
         }
-
     }
     lex->nparsed += env_len;
+    lex->delim_state = 0;
 }
 
 void lexer_run(t_lexer *lex)
@@ -259,7 +257,7 @@ void lexer_run(t_lexer *lex)
     while (!lex->error && lex->line[lex->nparsed] != TT_EOF)
     {
         c = lex->line[lex->nparsed];
-        if (c == '$')
+        if (c == '$' && lex->quote_state != SINGLE)
             handle_expand(lex);
         else if (ft_is_quote(c) && (!lex->quote_state || c == lex->quote_state))
             handle_quote(lex);
