@@ -242,9 +242,9 @@ void handle_expand(t_lexer *lex)
             strcat(lex->token_stream->end->lexeme, env_val);
             lex->token_stream->end->len += strlen(env_val);
         }
+        lex->delim_state = 0;
     }
     lex->nparsed += env_len;
-    lex->delim_state = 0;
 }
 
 void lexer_run(t_lexer *lex)
