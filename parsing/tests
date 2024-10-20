@@ -1,0 +1,1 @@
+ls -l | grep '\.txt$' | awk '{print $9}' | xargs wc -l && echo "Line count successful!" || echo "No .txt files found or line counting failed."

@@ -1,0 +1,50 @@
+{
+	"node_type":	"OP",
+	"op_type":	"OR",
+	"left_node":	{
+		"node_type":	"OP",
+		"op_type":	"AND",
+		"left_node":	{
+			"node_type":	"OP",
+			"op_type":	"PIPE",
+			"left_node":	{
+				"node_type":	"OP",
+				"op_type":	"PIPE",
+				"left_node":	{
+					"node_type":	"OP",
+					"op_type":	"PIPE",
+					"left_node":	{
+						"node_type":	"CMD",
+						"args":	["ls", "-l"],
+						"ios":	[]
+					},
+					"right_node":	{
+						"node_type":	"CMD",
+						"args":	["grep", "\\.txt$"],
+						"ios":	[]
+					}
+				},
+				"right_node":	{
+					"node_type":	"CMD",
+					"args":	["awk", "{print $9}"],
+					"ios":	[]
+				}
+			},
+			"right_node":	{
+				"node_type":	"CMD",
+				"args":	["xargs", "wc", "-l"],
+				"ios":	[]
+			}
+		},
+		"right_node":	{
+			"node_type":	"CMD",
+			"args":	["echo", "Line count successful!"],
+			"ios":	[]
+		}
+	},
+	"right_node":	{
+		"node_type":	"CMD",
+		"args":	["echo", "No .txt files found or line counting failed."],
+		"ios":	[]
+	}
+}

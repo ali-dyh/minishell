@@ -123,11 +123,13 @@ void push_token(t_lexer *lex, enum e_token_type type, size_t len)
     lex->token_stream->count++;
     token_lexeme_append(lex, len);
 }
+
 void handle_quote(t_lexer *lex)
 {
     if (lex->quote_state == lex->line[lex->nparsed])
     {
-        if (!lex->token_stream->end || !lex->token_stream->end->len)
+        // if (!lex->token_stream->end || !lex->token_stream->end->len)
+        if (lex->quote_state == lex->line[lex->nparsed - 1])
             push_token(lex, TT_WORD, 0);
         lex->quote_state = NONE;
     }
@@ -561,8 +563,9 @@ t_node *parse_cmd_node(t_parser *par)
 
     if (!par->current_token)
         return (par->error = UNEXPECTED_EOF, NULL);
-    if (par->current_token->type != TT_WORD)
-        return (par->error = UNEXPECTED_TOKEN, NULL);
+    // NOTE: >> file is valid
+    // if (par->current_token->type != TT_WORD)
+    //     return (par->error = UNEXPECTED_TOKEN, NULL);
     node = new_node(NT_CMD);
     if (!node)
         return (par->error = WTF, NULL);
@@ -600,9 +603,20 @@ t_node *parser_run(t_parser *par, int op_prec)
     t_node *left_node;
     enum e_op_type op_type;
 
-    left_node = parse_cmd_node(par);
+    if (par->current_token && par->current_token->type == TT_LEFT_PAREN)
+    {
+        get_next_token(par);
+        left_node = parser_run(par, 0);
+        if (!par->current_token || par->current_token->type != TT_RIGHT_PAREN)
+            return (par->error = UNEXPECTED_EOF, left_node);
+        get_next_token(par);
+    }
+    else 
+        left_node = parse_cmd_node(par);
     while (!par->error && par->current_token)
     {
+        if (par->current_token->type == TT_RIGHT_PAREN)
+            break;
         op_type = get_op_type(par->current_token);
         // if the next token is not an specified op then what ?
         // TODO: this needs to be an error
@@ -806,8 +820,8 @@ void parser_print_err(t_parser *par)
 }
 int main()
 {
-    // while (1)
-    // {
+    while (1)
+    {
         char *line = readline(">> ");
         t_lexer *lex = lexer_init(line);
         lexer_run(lex);
@@ -815,15 +829,15 @@ int main()
         {
             lexer_print_err(lex->error);
             lexer_free(lex);
-            // continue;
-            exit(1);
+            continue;
+            // exit(1);
         }
         // cJSON *lexJSON = lex_to_json(lex);
         // char *lexStr = cJSON_Print(lexJSON);
         // printf("%s\n", lexStr);
         // cJSON_free(lexStr);
         // cJSON_Delete(lexJSON);
-        // free_lex(lex);
+        // lexer_free(lex);
         // token_dump(lex);
         t_parser *par = parser_init(lex);
         t_node *node = parser_run(par, 0);
@@ -833,8 +847,8 @@ int main()
             free(par);
             node_free(node);
             lexer_free(lex);
-            // continue;
-            exit(1);
+            continue;
+            // exit(1);
         }
         // dump_cmd_node(node);
         cJSON *ast = ast_to_json(node);
@@ -845,5 +859,6 @@ int main()
         free(par);
         node_free(node);
         lexer_free(lex);
+    }
     return (0);
 }
