@@ -1,0 +1,56 @@
+{                 
+	"node_type":	"OP",
+	"op_type":	"AND",
+	"left_node":	{
+		"node_type":	"OP",
+		"op_type":	"AND",
+		"left_node":	{
+			"node_type":	"OP",
+			"op_type":	"OR",
+			"left_node":	{
+				"node_type":	"OP",
+				"op_type":	"PIPE",
+				"left_node":	{
+					"node_type":	"CMD",
+					"args":	["cat", "/var/log/application.log"],
+					"ios":	[]
+				},
+				"right_node":	{
+					"node_type":	"CMD",
+					"args":	["grep", "ERROR"],
+					"ios":	[]
+				}
+			},
+			"right_node":	{
+				"node_type":	"CMD",
+				"args":	["echo", "No errors found!"],
+				"ios":	[]
+			}
+		},
+		"right_node":	{
+			"node_type":	"OP",
+			"op_type":	"PIPE",
+			"left_node":	{
+				"node_type":	"CMD",
+				"args":	["grep", "-v", "DEBUG"],
+				"ios":	[]
+			},
+			"right_node":	{
+				"node_type":	"CMD",
+				"args":	["grep", "-v", "INFO"],
+				"ios":	[{
+						"io_type":	"REDIRECT OUTPUT",
+						"file_name":	"filtered_errors.log"
+					}]
+			}
+		}
+	},
+	"right_node":	{
+		"node_type":	"CMD",
+		"args":	["wc", "-l"],
+		"ios":	[{
+				"io_type":	"REDIRECT INPUT",
+				"file_name":	"filtered_errors.log"
+			}]
+	}
+}

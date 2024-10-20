@@ -196,6 +196,59 @@ void handle_word(t_lexer *lex)
     lex->delim_state = 0;
 }
 
+void handle_expand(t_lexer *lex)
+{
+    size_t env_len;
+    char *env_str;
+    char *env_val;
+    char *tmp;
+    
+    env_len = 0;
+    lex->nparsed++;
+    while (lex->line[lex->nparsed + env_len])
+    {
+        if (ft_is_quote(lex->line[lex->nparsed + env_len]))
+            break;
+        if (ft_is_seperator(lex->line[lex->nparsed + env_len]))
+            break;
+        if (ft_is_space(lex->line[lex->nparsed + env_len]))
+            break;
+        env_len++;
+    }
+    env_str = strndup(lex->line + lex->nparsed, env_len);
+    env_val = getenv(env_str);
+    free(env_str);
+    if (env_val)
+    {
+        if (lex->delim_state || !lex->token_stream->end)
+        {
+            t_token *token = (t_token *)malloc(sizeof(t_token));
+            /// TODO: handle the malloc failure
+            // if (!token)
+            // TODO: replace strdup with ft_strdup
+            token->lexeme = strdup(env_val);
+            token->next = NULL;
+            token->type = TT_WORD;
+            token->len = strlen(env_val);
+            if (!lex->token_stream->start)
+                lex->token_stream->start = token;
+            else
+                lex->token_stream->end->next = token;
+            lex->token_stream->end = token;
+            lex->token_stream->count++;
+        }
+        else {
+            tmp = lex->token_stream->end->lexeme;
+            lex->token_stream->end->lexeme = strcat(tmp, env_val);
+            // TODO: replace strlen with ft_strlen
+            lex->token_stream->end->len += strlen(env_val);
+            free(tmp);
+        }
+
+    }
+    lex->nparsed += env_len;
+}
+
 void lexer_run(t_lexer *lex)
 {
     char c;
@@ -206,7 +259,9 @@ void lexer_run(t_lexer *lex)
     while (!lex->error && lex->line[lex->nparsed] != TT_EOF)
     {
         c = lex->line[lex->nparsed];
-        if (ft_is_quote(c) && (!lex->quote_state || c == lex->quote_state))
+        if (c == '$')
+            handle_expand(lex);
+        else if (ft_is_quote(c) && (!lex->quote_state || c == lex->quote_state))
             handle_quote(lex);
         else if (ft_is_space(c) && !lex->quote_state)
             handle_space(lex);
@@ -832,33 +887,33 @@ int main()
             continue;
             // exit(1);
         }
-        // cJSON *lexJSON = lex_to_json(lex);
-        // char *lexStr = cJSON_Print(lexJSON);
-        // printf("%s\n", lexStr);
-        // cJSON_free(lexStr);
-        // cJSON_Delete(lexJSON);
-        // lexer_free(lex);
-        // token_dump(lex);
-        t_parser *par = parser_init(lex);
-        t_node *node = parser_run(par, 0);
-        if (par->error)
-        {
-            parser_print_err(par);
-            free(par);
-            node_free(node);
-            lexer_free(lex);
-            continue;
-            // exit(1);
-        }
-        // dump_cmd_node(node);
-        cJSON *ast = ast_to_json(node);
-        char *jsonStr = cJSON_Print(ast);
-        printf("%s\n", jsonStr);
-        cJSON_free(jsonStr);
-        cJSON_Delete(ast);
-        free(par);
-        node_free(node);
+        cJSON *lexJSON = lex_to_json(lex);
+        char *lexStr = cJSON_Print(lexJSON);
+        printf("%s\n", lexStr);
+        cJSON_free(lexStr);
+        cJSON_Delete(lexJSON);
         lexer_free(lex);
+
+        // t_parser *par = parser_init(lex);
+        // t_node *node = parser_run(par, 0);
+        // if (par->error)
+        // {
+        //     parser_print_err(par);
+        //     free(par);
+        //     node_free(node);
+        //     lexer_free(lex);
+        //     continue;
+        //     // exit(1);
+        // }
+        // // dump_cmd_node(node);
+        // cJSON *ast = ast_to_json(node);
+        // char *jsonStr = cJSON_Print(ast);
+        // printf("%s\n", jsonStr);
+        // cJSON_free(jsonStr);
+        // cJSON_Delete(ast);
+        // free(par);
+        // node_free(node);
+        // lexer_free(lex);
     }
     return (0);
 }
