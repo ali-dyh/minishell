@@ -64,9 +64,16 @@ void handle_quote(t_lexer *lex)
 {
     if (lex->quote_state == lex->line[lex->nparsed])
     {
-        // if (!lex->token_stream->end || !lex->token_stream->end->len)
         if (lex->quote_state == lex->line[lex->nparsed - 1])
-            push_token(lex, TT_WORD, 0);
+        {
+            if (!lex->token_stream->end)
+                push_token(lex, TT_WORD, 0);
+            else if (lex->delim_state)
+            {
+                push_token(lex, TT_WORD, 0);
+                lex->delim_state = 0;
+            }
+        }
         lex->quote_state = NONE;
     }
     else
@@ -200,7 +207,7 @@ void lexer_run(t_lexer *lex)
     while (!lex->error && lex->line[lex->nparsed] != TT_EOF)
     {
         c = lex->line[lex->nparsed];
-        if (c == '$' && lex->quote_state != SINGLE)
+        if (c == '$' && lex->line[lex->nparsed + 1] && lex->quote_state != SINGLE)
             handle_expand(lex);
         else if (ft_is_quote(c) && (!lex->quote_state || c == lex->quote_state))
             handle_quote(lex);

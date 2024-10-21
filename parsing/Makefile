@@ -27,5 +27,7 @@ tclean :
 clean :
 	rm -f $(OBJS)
 
-fclean:	clean tclean
+fclean : clean tclean
 	rm -f $(NAME)
+
+re : fclean all 
