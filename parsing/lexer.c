@@ -5,6 +5,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <cjson/cJSON.h>
+#include <ctype.h>
 
 enum e_quote_state
 {
@@ -206,11 +207,18 @@ void handle_expand(t_lexer *lex)
     lex->nparsed++;
     while (lex->line[lex->nparsed + env_len])
     {
-        if (ft_is_quote(lex->line[lex->nparsed + env_len]))
-            break;
-        if (ft_is_seperator(lex->line[lex->nparsed + env_len]))
-            break;
-        if (ft_is_space(lex->line[lex->nparsed + env_len]))
+        // if (ft_is_quote(lex->line[lex->nparsed + env_len]))
+        //     break;
+        // if (ft_is_seperator(lex->line[lex->nparsed + env_len]))
+        //     break;
+        // if (ft_is_space(lex->line[lex->nparsed + env_len]))
+        //     break;
+        if (lex->line[lex->nparsed + env_len] == '_')
+        {
+            env_len++;
+            continue;
+        }
+        if (!isalnum(lex->line[lex->nparsed + env_len]))
             break;
         env_len++;
     }
@@ -546,6 +554,7 @@ void push_cmd_arg(t_parser *par, t_cmd_data *data)
         data->arg = new_cmd_arg(par->current_token->lexeme);
     // if (!data->arg || !arg->next)
     //     par->error = WTF;
+    get_next_token(par);
 }
 
 enum e_io_type get_io_type(enum e_token_type ttype)
@@ -573,19 +582,15 @@ void push_cmd_io(t_parser *par, t_cmd_data *data)
     }
     else
         data->io = new_cmd_io(get_io_type(par->current_token->type));
-    // if (!data->io || !io->next)
-    // {
-    //     par->error = WTF;
-    //     return;
-    // }
     token = get_next_token(par);
-    if (token && token->type == TT_WORD)
+    if (!token || token->type != TT_WORD)
     {
-        io = last_cmd_io(data);
-        io->file = strdup(token->lexeme);
-    }
-    else
         par->error = UNEXPECTED_TOKEN;
+        return;
+    }
+    io = last_cmd_io(data);
+    io->file = strdup(token->lexeme);
+    get_next_token(par);
 }
 
 t_cmd_data *parse_cmd_data(t_parser *par)
@@ -605,7 +610,6 @@ t_cmd_data *parse_cmd_data(t_parser *par)
             push_cmd_io(par, data);
         else
             break;
-        get_next_token(par);
     }
     return (data);
 }
@@ -617,8 +621,8 @@ t_node *parse_cmd_node(t_parser *par)
     if (!par->current_token)
         return (par->error = UNEXPECTED_EOF, NULL);
     // NOTE: >> file is valid
-    // if (par->current_token->type != TT_WORD)
-    //     return (par->error = UNEXPECTED_TOKEN, NULL);
+    if (!(get_io_type(par->current_token->type)) && par->current_token->type != TT_WORD)
+        return (par->error = UNEXPECTED_TOKEN, NULL);
     node = new_node(NT_CMD);
     if (!node)
         return (par->error = WTF, NULL);
@@ -868,7 +872,13 @@ void parser_print_err(t_parser *par)
     if (par->error == UNEXPECTED_EOF)
         printf("syntax error: unexpected end of file\n");
     else if (par->error == UNEXPECTED_TOKEN)
-        printf("syntax error near unexpected token `%s'\n",par->current_token->lexeme);
+    {
+        if (par->current_token)
+            printf("syntax error near unexpected token `%s'\n",par->current_token->lexeme);
+        else 
+            printf("syntax error near unexpected token `newline'\n");
+
+    }
         // printf("syntax error: unexpected end of file %s", par->current_token->lexeme);
 }
 int main()
@@ -885,33 +895,34 @@ int main()
             continue;
             // exit(1);
         }
-        cJSON *lexJSON = lex_to_json(lex);
-        char *lexStr = cJSON_Print(lexJSON);
-        printf("%s\n", lexStr);
-        cJSON_free(lexStr);
-        cJSON_Delete(lexJSON);
-        lexer_free(lex);
-
-        // t_parser *par = parser_init(lex);
-        // t_node *node = parser_run(par, 0);
-        // if (par->error)
-        // {
-        //     parser_print_err(par);
-        //     free(par);
-        //     node_free(node);
-        //     lexer_free(lex);
-        //     continue;
-        //     // exit(1);
-        // }
-        // // dump_cmd_node(node);
-        // cJSON *ast = ast_to_json(node);
-        // char *jsonStr = cJSON_Print(ast);
-        // printf("%s\n", jsonStr);
-        // cJSON_free(jsonStr);
-        // cJSON_Delete(ast);
-        // free(par);
-        // node_free(node);
+        // cJSON *lexJSON = lex_to_json(lex);
+        // char *lexStr = cJSON_Print(lexJSON);
+        // printf("%s\n", lexStr);
+        // cJSON_free(lexStr);
+        // cJSON_Delete(lexJSON);
         // lexer_free(lex);
+
+        t_parser *par = parser_init(lex);
+        t_node *node = parser_run(par, 0);
+        if (par->error)
+        {
+            parser_print_err(par);
+            // printf("%d\n", par->error);
+            free(par);
+            node_free(node);
+            lexer_free(lex);
+            continue;
+            // exit(1);
+        }
+        // dump_cmd_node(node);
+        cJSON *ast = ast_to_json(node);
+        char *jsonStr = cJSON_Print(ast);
+        printf("%s\n", jsonStr);
+        cJSON_free(jsonStr);
+        cJSON_Delete(ast);
+        free(par);
+        node_free(node);
+        lexer_free(lex);
     }
     return (0);
 }
