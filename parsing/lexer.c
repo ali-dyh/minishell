@@ -94,7 +94,10 @@ void handle_seperator(t_lexer *lex)
     else if (lex->line[lex->nparsed] == TT_AMPERSAND && lex->line[lex->nparsed + 1] == TT_AMPERSAND)
         push_token(lex, TT_AND, 2);
     else if (lex->line[lex->nparsed] == TT_REDIRECT_INPUT && lex->line[lex->nparsed + 1] == TT_REDIRECT_INPUT)
+    {
         push_token(lex, TT_HEREDOC, 2);
+        lex->heredoc_state = 1;
+    }
     else if (lex->line[lex->nparsed] == TT_REDIRECT_OUTPUT && lex->line[lex->nparsed + 1] == TT_REDIRECT_OUTPUT)
         push_token(lex, TT_APPEND_OUTPUT, 2);
     else if (lex->line[lex->nparsed] == TT_PIPE)
@@ -120,6 +123,7 @@ t_lexer *lexer_init(char *line)
     lexer->nparsed = 0;
     lexer->quote_state = NONE;
     lexer->delim_state = 0;
+    lexer->heredoc_state = 0;
     lexer->line = line;
     lexer->error = NO_LEX_ERR;
     lexer->token_stream = (t_token_stream *)malloc(sizeof(t_token_stream));
@@ -137,8 +141,21 @@ void handle_word(t_lexer *lex)
     else
         append_token(lex);
     lex->delim_state = 0;
+    lex->heredoc_state = 0;
+}
+int ft_isdigit(char ch)
+{
+    return (ch >= '0' && ch <= '9');
 }
 
+int ft_isalpha(char ch)
+{
+    return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'));
+}
+int is_expandable(char ch)
+{
+    return (ft_isdigit(ch) || ft_isalpha(ch) || ch == '_');
+}
 void handle_expand(t_lexer *lex)
 {
     size_t env_len;
@@ -149,18 +166,7 @@ void handle_expand(t_lexer *lex)
     lex->nparsed++;
     while (lex->line[lex->nparsed + env_len])
     {
-        // if (ft_is_quote(lex->line[lex->nparsed + env_len]))
-        //     break;
-        // if (ft_is_seperator(lex->line[lex->nparsed + env_len]))
-        //     break;
-        // if (ft_is_space(lex->line[lex->nparsed + env_len]))
-        //     break;
-        if (lex->line[lex->nparsed + env_len] == '_')
-        {
-            env_len++;
-            continue;
-        }
-        if (!isalnum(lex->line[lex->nparsed + env_len]))
+        if (!is_expandable(lex->line[lex->nparsed + env_len]))
             break;
         env_len++;
     }
@@ -207,7 +213,8 @@ void lexer_run(t_lexer *lex)
     while (!lex->error && lex->line[lex->nparsed] != TT_EOF)
     {
         c = lex->line[lex->nparsed];
-        if (c == '$' && lex->line[lex->nparsed + 1] && lex->quote_state != SINGLE)
+        // cmd << tets
+        if (c == '$' && lex->line[lex->nparsed + 1] && lex->quote_state != SINGLE && !lex->heredoc_state)
             handle_expand(lex);
         else if (ft_is_quote(c) && (!lex->quote_state || c == lex->quote_state))
             handle_quote(lex);

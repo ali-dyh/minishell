@@ -64,6 +64,7 @@ typedef struct s_lexer
     char *line;
     enum e_quote_state quote_state;
     int delim_state;
+    int heredoc_state;
     size_t nparsed;
     enum e_lexical_error error;
     t_token_stream *token_stream;
