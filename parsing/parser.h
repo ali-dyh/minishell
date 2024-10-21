@@ -81,9 +81,12 @@ typedef struct s_ast
     t_node *root;
     enum e_lexical_error lex_err;
     enum e_syntax_error syn_err;
+    char *token_err;
 } t_ast;
 
 t_ast *ast_parse(char *line);
+void ast_print_err(t_ast *ast);
+void ast_dump(t_ast *ast);
 void ast_free(t_ast *ast);
 
 #endif

@@ -392,14 +392,14 @@ void node_free(t_node *node)
     else 
         node_cmd_free(node);
 }
-void parser_print_err(t_parser *par)
+void parser_print_err(enum e_syntax_error syn_err, char *token_err)
 {
-    if (par->error == UNEXPECTED_EOF)
+    if (syn_err == UNEXPECTED_EOF)
         printf("syntax error: unexpected end of file\n");
-    else if (par->error == UNEXPECTED_TOKEN)
+    else if (syn_err == UNEXPECTED_TOKEN)
     {
-        if (par->current_token)
-            printf("syntax error near unexpected token `%s'\n",par->current_token->lexeme);
+        if (token_err)
+            printf("syntax error near unexpected token `%s'\n", token_err);
         else 
             printf("syntax error near unexpected token `newline'\n");
     }
@@ -416,6 +416,7 @@ t_ast *ast_init()
     ast->root = NULL;
     ast->lex_err = NO_LEX_ERR;
     ast->syn_err = NO_SYN_ERR;
+    ast->token_err = NULL;
     return (ast);
 }
 
@@ -435,15 +436,14 @@ t_ast *ast_parse(char *line)
         return ast;
     }
     par = parser_init(lex);
-    ast = parser_run(par, 0);
+    ast->root = parser_run(par, 0);
     if (par->error)
     {
         ast->syn_err = par->error;
-        // ast->tok = par->current_token;
-        lexer_free(lex);
-        free(par);
-        return ast;
+        // TODO: replace strdup with ft
+        ast->token_err = par->current_token ? strdup(par->current_token->lexeme) : NULL;
     }
+    free(par);
     lexer_free(lex);
     return ast;
 }
@@ -453,12 +453,22 @@ void ast_print_err(t_ast *ast)
     if (ast->lex_err)
         lexer_print_err(ast->lex_err);
     else if (ast->syn_err)
-        parser_print_err()
+        parser_print_err(ast->syn_err, ast->token_err);
 }
 void ast_free(t_ast *ast)
 {
    node_free(ast->root);
+   free(ast->token_err);
    free(ast);
+}
+
+void ast_dump(t_ast *ast)
+{
+    cJSON *astJson = ast_to_json(ast->root);
+    char *astStr = cJSON_Print(astJson);
+    printf("%s\n", astStr);
+    cJSON_free(astStr);
+    cJSON_Delete(astJson);
 }
 
 // int main()
