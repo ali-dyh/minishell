@@ -1,7 +1,7 @@
 ls -l | grep '\.txt$' | awk '{print $9}' | xargs wc -l && echo "Line count successful!" || echo "No .txt files found or line counting failed."
 (cat /var/log/application.log | grep "ERROR" || echo "No errors found!") && (grep -v "DEBUG" | grep -v "INFO" > filtered_errors.log) && (wc -l < filtered_errors.log) 
 
- //expnansion
+ //expansion
 
 $"$USER"$
 $123123USER
