@@ -84,9 +84,16 @@ typedef struct s_ast
     char *token_err;
 } t_ast;
 
+/******* Testing only *********/
+
+t_parser *parser_init(t_lexer *lex);
+t_node *parser_run(t_parser *par, int op_prec);
+void node_free(t_node *node);
+
+/*****************************/
+
 t_ast *ast_parse(char *line);
 void ast_print_err(t_ast *ast);
-void ast_dump(t_ast *ast);
 void ast_free(t_ast *ast);
 
 #endif

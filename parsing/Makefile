@@ -1,7 +1,7 @@
 NAME = lexerparser.a
 CC = cc
 CFLAGS = -Wall -Wextra -Werror
-CJSON = -lcjson
+TESTFLAGS = -lcjson -lreadline
 AR = ar rcs
 
 HDRS = lexer.h parser.h
@@ -17,8 +17,15 @@ $(NAME): $(OBJS)
 
 all : $(NAME)
 
+test : $(NAME)
+	$(CC) lexer_test.c $< $(TESTFLAGS) -o lex
+	$(CC) parser_test.c $< $(TESTFLAGS) -o par 
+
+tclean : 
+	rm -f lex par
+
 clean :
 	rm -f $(OBJS)
 
-fclean:	clean
+fclean:	clean tclean
 	rm -f $(NAME)
