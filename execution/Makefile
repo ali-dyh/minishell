@@ -3,7 +3,7 @@ CC = cc
 CFLAGS = -Wall -Wextra -Werror #-fsanitize=address -g3 
 RM = rm -rf
 
-MANDATORY = pipex/ft_split.c pipex/multipipe.c pipex/pipex.c  builtin.c
+MANDATORY = pipex/ft_split.c pipex/pipex.c test.c
 			
 MANDATORY_O = ${MANDATORY:.c=.o}
 
