@@ -1,0 +1,13 @@
+--> test cases:
+cboujrar@c3r5p6:~/Desktop/minishell/execution$ s nonexistent_file | grep .txt | wc -l
+s: command not found
+0
+--------------------------------------------
+>> s nonexistent_file | grep .txt | wc -l
+0
+
+=> handle the error in the middle of the pipes
+
+cboujrar@c3r5p6:~/Desktop/minishell/execution$ echo "data" | grep "data" | nonexistent_command | wc -l
+nonexistent_command: command not found
+0
