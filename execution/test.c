@@ -6,7 +6,7 @@
 /*   By: cboujrar <cboujrar@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/10/19 12:16:43 by marvin            #+#    #+#             */
-/*   Updated: 2024/10/24 19:50:23 by cboujrar         ###   ########.fr       */
+/*   Updated: 2024/10/25 15:38:49 by cboujrar         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,30 +29,78 @@ char *ft_strjoin(char const *s1, char const *s2);
 int calcule_pipes(t_node *node);
 void child_process(t_node *node, int end[2], int prev_end[2], int nb_pipes);
 void set_prev_end(int prev_end[2], int end[2]);
-int execute_and(t_op_data *op_data, int status);
-int execute_or(t_op_data *op_data, int status);
+int execute_and(t_op_data *op_data, int status, int nb_pipes);
+int execute_or(t_op_data *op_data, int status, int nb_pipes);
 
+
+
+t_node *find_parent(t_node *root, t_node *target) 
+{
+    t_node *left_search;
+    
+    if (root == NULL || target == NULL || root == target) {
+        return NULL;
+    }
+
+    if(root->type == NT_OP)
+    {
+        if (root->data->op_data->left == target || root->data->op_data->right == target) {
+            return root;
+        }  
+    }
+    else
+        left_search = NULL;
+
+    left_search = find_parent(root->data->op_data->left, target);
+    if (left_search != NULL) {
+        return left_search; 
+    }
+    return find_parent(root->data->op_data->right, target);
+}
 
 // execute the node and traverse the AST
 
-void execute_node(t_node *node, int nb_pipes, int status)
+int execute_node(t_node *root, t_node *node, int nb_pipes,int status)
 {
+    t_node *parent;
+      
     if (node == NULL)
-        return;
+        return(status);
 
+    // status = -1;
     if(node->type == NT_OP)
     {
-        execute_node(node->data->op_data->left, nb_pipes, status);
-        execute_node(node->data->op_data->right, nb_pipes, status);
-        status = execute_operator(node->data->op_data, nb_pipes, status);
+        if(node->data->op_data->type == OT_PIPE)
+        {
+            status = execute_node(root, node->data->op_data->left, nb_pipes, status);
+            status = execute_node(root, node->data->op_data->right, nb_pipes, status);
+            // printf("I am here from pipes \n");
+            parent = find_parent(root, node);
+            if(!parent ||  parent->data->op_data->type != OT_PIPE)
+                status = execute_operator(node->data->op_data, nb_pipes, status);
+        }
+        else
+        {
+            status = execute_node(root ,node->data->op_data->left, nb_pipes, status);
+            if((node->data->op_data->type == OT_AND && (status == 0 || status == -1)) || ((node->data->op_data->type == OT_OR &&  (status != 0 || status == -1))))
+            {
+                if(node->data->op_data->right->data->op_data->type != OT_PIPE)
+                {
+                    status = execute_node(root ,node->data->op_data->right, nb_pipes, status);
+                    // printf("I am here from execute right node  %s\n", node->data->op_data->right->data->op_data->left->data->cmd_data->arg->name);
+                }
+                status = execute_operator(node->data->op_data, nb_pipes, status);  
+            }
+        }
     }
-
-
+    else
+        status = -1;
     // else if (node->type == NT_CMD) {
     //     // Handle command execution
-    //     execute_cmd(node->data->cmd_data);
+    //     status = execute_cmd(node->data->cmd_data);
     //     //TODO:first thing execute the herdoc
     // }
+    return(status);
 }
 
 // execute commande and handle input , output redirections
@@ -147,9 +195,9 @@ int execute_operator(t_op_data *op_data, int nb_pipes, int status)
     if (op_data->type == OT_PIPE)
         status = execute_pipe(op_data, nb_pipes);
     else if (op_data->type == OT_AND)
-        status = execute_and(op_data, status);
+        status = execute_and(op_data, status, nb_pipes);
     else if (op_data->type == OT_OR)
-        status = execute_or(op_data, status);
+        status = execute_or(op_data, status, nb_pipes);
     return (status);
 }
 
@@ -230,6 +278,7 @@ int  execute_pipe(t_op_data *op_data, int nb_pipes)
         ;
     close(end_pip[0]);
     close(end_pip[1]);
+    // printf("status for pipe ---> %d\n", status);
     return(status);
 }
 
@@ -281,24 +330,28 @@ void set_prev_end(int prev_end[2], int end[2])
 
 // handle operator and
 
-int execute_and(t_op_data *op_data, int status)
+int execute_and(t_op_data *op_data, int status, int nb_pipes)
 {
     if ((status == -1 || !status) && op_data->left->type == NT_CMD)
         status = execute_cmd(op_data->left->data->cmd_data);
-    if (!status)
+    if (!status &&  op_data->right->type == NT_CMD)
         status = execute_cmd(op_data->right->data->cmd_data);
+    else if(!status && op_data->right->type == NT_OP)
+        status = execute_operator(op_data->right->data->op_data, nb_pipes,  status);
     return (status);
 }
 
 // handle operator or
 
-int execute_or(t_op_data *op_data, int status)
+int execute_or(t_op_data *op_data, int status, int nb_pipes)
 {
     if ((status == -1 || status) && op_data->left->type == NT_CMD)
         status = execute_cmd(op_data->left->data->cmd_data);
 
     if (status != 0)
         status = execute_cmd(op_data->right->data->cmd_data);
+    else if(status != 0 && op_data->right->type == NT_OP)
+        status = execute_operator(op_data->right->data->op_data,nb_pipes,  status);
     return (status);
 }
 
@@ -468,21 +521,28 @@ int main()
         // printf("%s\n", jsonStr);
         nb_pipes = calcule_pipes(ast->root);
         status = -1;
+        // t_node *parent = find_parent(ast->root, ast->root->data->op_data->left);
+        // printf("-->%s\n", parent->data->op_data->left->data->cmd_data->arg->name);
+        // cJSON *node = ast_to_json(parent);
+        // char *node_parent = cJSON_Print(node);
+        // printf("%s\n", node_parent);
         if (ast->root->type == NT_CMD)
             status = execute_cmd(ast->root->data->cmd_data);
         else if(ast->root->type == NT_OP)
-            execute_node(ast->root, nb_pipes, status);
-        // else if (ast->root->data->op_data->type == OT_PIPE)
-        // {
-        //     // printf("--->%d\n", nb_pipes);
-        //     execute_pipe(ast->root->data->op_data, nb_pipes);
-        // }
+            status = execute_node(ast->root ,ast->root, nb_pipes, status);
+        else if (ast->root->data->op_data->type == OT_PIPE)
+        {
+            // printf("--->%d\n", nb_pipes);
+            execute_pipe(ast->root->data->op_data, nb_pipes);
+        }
         // else if (ast->root->data->op_data->type == OT_AND)
         //     execute_and(ast->root->data->op_data);
         // else if (ast->root->data->op_data->type == OT_OR)
         //     execute_and(ast->root->data->op_data);
         // cJSON_free(jsonStr);
-        // cJSON_Delete(json);
+        // cJSON_Delete(json); 
+        // cJSON_free(node_parent);
+        // cJSON_Delete(node);
     }
     return (0);
 }
